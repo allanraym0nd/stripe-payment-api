@@ -1,14 +1,18 @@
-import jwt from 'jsonwebtoken'
+import jwt, { SignOptions } from 'jsonwebtoken'
 import crypto from 'crypto'
 import type { JWTpayload } from '../types/auth.types'
 
 // ACCESS TOKEN
 export const signAccessToken = (userId: string, role: string): string => {
+    const options: SignOptions = {
+        expiresIn: (process.env.JWT_EXPIRES_IN as SignOptions['expiresIn']) ?? '15m'
+
+    }
 
     return jwt.sign(
         { sub: userId, role, type: 'access' } satisfies JWTpayload,
         process.env.JWT_SECRET!,
-        { expiresIn: process.env.JWT_EXPIRES_IN }
+        options
     )
 }
 
