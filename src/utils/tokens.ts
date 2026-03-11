@@ -29,14 +29,14 @@ export const generateRefreshToken = (): string => {
 }
 
 export const hashToken = (token: string): string => {
-    return crypto.createHash('sha56').update(token).digest('hex')
+    return crypto.createHash('sha256').update(token).digest('hex')
 }
 
 //API key
 export const generateApiKey = (): { raw: string, hash: string, lastFour: string } => {
 
     const raw = 'sk_' + crypto.randomBytes(32).toString('hex')
-    const hash = crypto.createHash('sha56').update(raw).digest('hex')
+    const hash = crypto.createHash('sha256').update(raw).digest('hex')
     const lastFour = raw.slice(-4)
     return { raw, hash, lastFour }
 
