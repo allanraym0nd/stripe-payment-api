@@ -1,6 +1,6 @@
 import stripe from "../config/stripe";
 import sql from "../config/db";
-
+import { AppError } from '../utils/AppError.js'
 // create payment intent
 export const createPaymentIntent = async (
     userId: string,
@@ -43,36 +43,32 @@ export const confirmPaymentIntent = async (paymentIntentId: string) => {
     return intent
 }
 
+
 export const getPaymentIntent = async (paymentIntentId: string, userId: string) => {
     const [transaction] = await sql`
     SELECT * FROM transactions
-    WHERE stripe_payment_id = ${paymentIntentId}
-    AND user_id = ${userId}
-    `
-
-    if (!transaction) throw new Error('Transaction not found')
+    WHERE stripe_payment_id = ${paymentIntentId} AND user_id = ${userId}
+  `
+    if (!transaction) throw new AppError('Transaction not found', 404)
 
     const intent = await stripe.paymentIntents.retrieve(paymentIntentId)
     return { intent, transaction }
-
 }
+
 
 export const cancelPaymentIntent = async (paymentIntentId: string, userId: string) => {
     const [transaction] = await sql`
     SELECT * FROM transactions
-    WHERE stripe_payment_id = ${paymentIntentId}
-    AND user_id = ${userId}
-    `
-    if (!transaction) throw new Error('Transaction not found')
-    if (transaction.status !== 'pending') throw new Error('Only pending payments can be cancelled')
+    WHERE stripe_payment_id = ${paymentIntentId} AND user_id = ${userId}
+  `
+    if (!transaction) throw new AppError('Transaction not found', 404)
+    if (transaction.status !== 'pending') throw new AppError('Only pending payments can be cancelled', 400)
 
     const intent = await stripe.paymentIntents.cancel(paymentIntentId)
-
-    await sql` 
-    UPDATE transactions
-    SET status = 'cancelled' , updated_at = NOW(
+    await sql`
+    UPDATE transactions SET status = 'cancelled', updated_at = NOW()
     WHERE stripe_payment_id = ${paymentIntentId}
-    `
+  `
     return intent
 }
 
