@@ -1,4 +1,4 @@
-import type { Request, Response } from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import {
     registerUser,
     loginUser,
@@ -17,50 +17,28 @@ const COOKIE_OPTIONS = {
 
 }
 
-export const register = async (req: Request, res: Response): Promise<void> => {
+export const register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { email, password } = req.body
-        if (!email || !password) {
-            res.status(400).json({ error: 'Email and password required' })
-            return
-        }
-        if (password.length < 8) {
-            res.status(400).json({ error: 'Password must be at least 8 characters' })
-            return
-        }
-
         const user = await registerUser(email, password)
         res.status(201).json({ user })
-
     } catch (err: any) {
-        res.status(400).json({ error: err.message })
-
+        next(err)
     }
-
 }
 
-export const login = async (req: Request, res: Response): Promise<void> => {
+export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { email, password } = req.body
-        if (!email || !password) {
-            res.status(400).json({ error: 'Email and password required' })
-            return
-        }
         const { accessToken, refreshToken, user } = await loginUser(email, password)
-
-
         res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
         res.json({ accessToken, user })
-
     } catch (err: any) {
-        res.status(401).json({ error: err.message })
-
+        next(err)
     }
-
-
 }
 
-export const refresh = async (req: Request, res: Response): Promise<void> => {
+export const refresh = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const token = req.cookies?.refreshToken
         if (!token) {
@@ -73,13 +51,13 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
         res.json({ accessToken })
 
     } catch (err: any) {
-        res.status(401).json({ error: err.message })
+        next(err)
 
     }
 
 }
 
-export const logout = async (req: Request, res: Response): Promise<void> => {
+export const logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const token = req.cookies?.refreshToken
         if (token) await logoutUser(token)
@@ -88,66 +66,44 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
 
 
     } catch (err: any) {
-        res.status(500).json({ error: 'Logout failed' })
+        next(err)
     }
 
 
 }
 
-export const generateApiKey = async (req: Request, res: Response): Promise<void> => {
+export const generateApiKey = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { name, scopes } = req.body
-        if (!name) {
-            res.status(400).json({ error: 'Key name required' })
-            return
-        }
-
-        const validScopes = ["read", "write", "refund"]
-        const requestedScopes: string[] = scopes || ["read"]
-        const invalidScopes = requestedScopes.filter((s: string) => !validScopes.includes(s))
-
-        if (invalidScopes.length > 0) {
-            res.status(400).json({ error: `Invalid scopes: ${invalidScopes.join(', ')}` })
-            return
-
-        }
-
-        const key = await createApiKey(req.user!.id, name, requestedScopes)
-
-        res.json({
+        const key = await createApiKey(req.user!.id, name, scopes)
+        res.status(201).json({
             id: key.id,
             key: key.raw,
             lastFour: key.lastFour,
             message: 'Store this key securely. It will not be shown again.'
-
         })
-
-
     } catch (err: any) {
-        res.status(400).json({ error: err.message })
-
+        next(err)
     }
-
-
 }
 
-export const getApiKeys = async (req: Request, res: Response): Promise<void> => {
+export const getApiKeys = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const keys = listApiKeys(req.user!.id)
         res.json({ keys })
 
-    } catch {
-        res.status(500).json({ error: 'Failed to fetch keys' })
+    } catch (err) {
+        next(err)
     }
 
 }
 
-export const deleteApiKey = async (req: Request, res: Response): Promise<void> => {
+export const deleteApiKey = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
 
         await revokeApiKey(req.params.id as string, req.user!.id)
         res.json({ message: 'Key revoked' })
-    } catch {
-        res.status(500).json({ error: 'Failed to revoke key' })
+    } catch (err: any) {
+        next(err)
     }
 }
