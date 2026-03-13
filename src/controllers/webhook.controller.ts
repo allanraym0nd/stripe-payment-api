@@ -1,4 +1,4 @@
-import type { Request, Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 import {
     verifyStripeSignature,
     isEventProcessed,
@@ -6,8 +6,9 @@ import {
     markEventProcessed,
     handleStripeEvent
 } from '../services/webhook.service.js'
+import logger from "../utils/logger.js";
 
-export const stripeWebhook = async (req: Request, res: Response): Promise<void> => {
+export const stripeWebhook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const signature = req.headers['stripe-signature'] as string
 
     if (!signature) {
@@ -30,7 +31,7 @@ export const stripeWebhook = async (req: Request, res: Response): Promise<void> 
     // idempotency check
     const alreadyProcessed = await isEventProcessed((await event).id)
     if (alreadyProcessed) {
-        console.log(`Skipping dupicate event: ${(await event).id}`)
+        logger.info({ eventId: (await event).id }, 'skipping duplicate webhook event')
     }
     await logEvent((await event).id, (await event).type)
 
@@ -40,6 +41,7 @@ export const stripeWebhook = async (req: Request, res: Response): Promise<void> 
 
     } catch (err) {
         console.error(`Failed to process event ${(await event).id}:`, err)
+        logger.warn({ eventId: (await event).id, err }, 'failed to process webhook event')
 
     }
 
