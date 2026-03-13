@@ -9,18 +9,23 @@ import {
     getRefundById
 } from '../controllers/payment.controller.js'
 import { requireAuth } from '../middleware/auth.js'
+import { paymentLimiter, generalLimiter } from '../middleware/rateLimiter.js'
+import { validate } from '../middleware/validate.js'
+import { createIntentSchema, refundSchema } from '../validators/payment.schemas.js'
 
 const router = Router()
 
-// All payment routes require auth
 router.use(requireAuth)
 
-router.post('/intent', createIntent)
-router.post('/intent/:id/confirm', confirmIntent)
-router.get('/intent/:id', getIntent)
-router.post('/intent/:id/cancel', cancelIntent)
-router.get('/transactions', getTransactions)
-router.post('/refunds', refund)
-router.get('/refunds/:id', getRefundById)
+// Mutating endpoints get payment limiter
+router.post('/intent', paymentLimiter, validate(createIntentSchema), createIntent)
+router.post('/intent/:id/confirm', paymentLimiter, confirmIntent)
+router.post('/intent/:id/cancel', paymentLimiter, cancelIntent)
+router.post('/refunds', paymentLimiter, validate(refundSchema), refund)
+
+// Read endpoints get general limiter
+router.get('/intent/:id', generalLimiter, getIntent)
+router.get('/transactions', generalLimiter, getTransactions)
+router.get('/refunds/:id', generalLimiter, getRefundById)
 
 export default router
