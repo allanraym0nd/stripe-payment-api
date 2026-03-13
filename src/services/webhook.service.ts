@@ -1,5 +1,6 @@
 import stripe from '../config/stripe.js'
 import sql from '../config/db.js'
+import logger from '../utils/logger.js'
 
 // verify stripe signature
 export const verifyStripeSignature = async (payload: Buffer, signature: string) => {
@@ -51,7 +52,8 @@ const handlePaymentSucceeded = async (paymentIntent: any) => {
     SET status = "completed", updated_at = NOW()
     WHERE stripe_payment_id = ${paymentIntent.id} `
 
-    console.log(`Payment Succeeded: ${paymentIntent.id}`)
+
+    logger.info({ paymentIntentId: paymentIntent.id }, 'payment succeeded')
 
 }
 
@@ -61,7 +63,8 @@ const handlePaymentFailed = async (paymentIntent: any) => {
     SET status = 'failed', updated_at = NOW()
     WHERE stripe_payment_id = ${paymentIntent.id}
   `
-    console.log(`✘ Payment failed: ${paymentIntent.id}`)
+
+    logger.warn({ paymentIntentId: paymentIntent.id }, 'payment failed')
 
 }
 
@@ -75,7 +78,7 @@ const handleCustomerDeleted = async (customer: any) => {
     await sql`DELETE FROM customers
     WHERE stripe_payment_id = ${customer.id}`
 
-    console.log(`Customer deleted: ${customer.id}`)
+    logger.info({ customerId: customer.id }, 'customer deleted')
 
 }
 
@@ -99,7 +102,7 @@ export const handleStripeEvent = async (event: any): Promise<void> => {
             break
 
         default:
-            console.log(`Unhandled event type: ${event.type}`)
+            logger.warn({ eventType: event.type }, 'unhandled webhook event')
 
     }
 
