@@ -12,28 +12,26 @@ import { requestLogger } from './middleware/requestLogger.js'
 import logger from './utils/logger.js'
 
 dotenv.config()
+
 const app = express()
 
-app.use(requestLogger)
-//SECURITY
 app.use(helmet())
 app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }))
-app.use(cookieParser())
-
-//for webhooks
 app.use('/webhooks/stripe', express.raw({ type: 'application/json' }))
+app.use(express.json())
+app.use(cookieParser())
+app.use(requestLogger)
+app.use(generalLimiter)
+
 app.get('/ping', (req, res) => res.json({ message: 'pong' }))
 
-app.use(express.json())
-app.use(generalLimiter)
 app.use('/auth', authRoutes)
 app.use('/payments', paymentRoutes)
 app.use('/webhooks', webhookRoutes)
 
-
 app.use(errorHandler)
 
+const PORT = process.env.PORT || 3000
+app.listen(PORT, () => logger.info({ port: PORT }, 'server started'))
 
-app.listen(process.env.PORT, () => { logger.info({ port: process.env.PORT }, 'server started') })
-
-export default app;
+export default app

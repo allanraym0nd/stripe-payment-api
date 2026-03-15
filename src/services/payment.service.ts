@@ -13,7 +13,11 @@ export const createPaymentIntent = async (
         amount,
         currency,
         customer: customer.stripe_customer_id,
-        metadata: { userId, ...metadata }
+        metadata: { userId, ...metadata },
+        automatic_payment_methods: {
+            enabled: true,
+            allow_redirects: 'never'   // ← add this
+        },
     }, {
         idempotencyKey: `pi_${userId}_${amount}_${Date.now()}`
     })

@@ -3,15 +3,16 @@ import sql from '../config/db.js'
 import logger from '../utils/logger.js'
 
 // verify stripe signature
-export const verifyStripeSignature = async (payload: Buffer, signature: string) => {
+export const verifyStripeSignature = (payload: Buffer, signature: string) => {
     try {
-        return stripe.webhooks.constructEvent(payload, signature, process.env.STRIPE_WEBHOOK_SECRET!)
-
+        return stripe.webhooks.constructEvent(
+            payload,
+            signature,
+            process.env.STRIPE_WEBHOOK_SECRET!
+        )
     } catch {
-        throw new Error('Invalid Webhook signature')
-
+        throw new Error('Invalid webhook signature')
     }
-
 }
 
 //check idempotency
@@ -32,7 +33,8 @@ export const logEvent = async (stripeEventId: string, type: string): Promise<voi
     await sql`
     INSERT INTO webhook_events (stripe_event_id, type, processed)
     VALUES (${stripeEventId}, ${type}, false)
-    ON CONFLICT(stripe_event_id)`
+    ON CONFLICT (stripe_event_id) DO NOTHING
+  `
 }
 
 export const markEventProcessed = async (stripeEventId: string): Promise<void> => {
@@ -46,15 +48,15 @@ export const markEventProcessed = async (stripeEventId: string): Promise<void> =
 // EVENT HANDLERS ---------
 
 const handlePaymentSucceeded = async (paymentIntent: any) => {
+    logger.info({ paymentIntentId: paymentIntent.id }, 'attempting to update transaction')
 
-    await sql`
-    UPDATE transactions 
-    SET status = "completed", updated_at = NOW()
-    WHERE stripe_payment_id = ${paymentIntent.id} `
+    const result = await sql`
+    UPDATE transactions
+    SET status = 'completed', updated_at = NOW()
+    WHERE stripe_payment_id = ${paymentIntent.id}
+  `
 
-
-    logger.info({ paymentIntentId: paymentIntent.id }, 'payment succeeded')
-
+    logger.info({ rowCount: result.count }, 'update result')
 }
 
 const handlePaymentFailed = async (paymentIntent: any) => {
@@ -84,26 +86,22 @@ const handleCustomerDeleted = async (customer: any) => {
 
 //Main event router
 export const handleStripeEvent = async (event: any): Promise<void> => {
+    logger.info({ eventType: event.type }, 'processing webhook event')
+
     switch (event.type) {
         case 'payment_intent.succeeded':
             await handlePaymentSucceeded(event.data.object)
             break
-
         case 'payment_intent.payment_failed':
             await handlePaymentFailed(event.data.object)
             break
-
         case 'charge.refunded':
             await handleRefundUpdated(event.data.object)
             break
-
         case 'customer.deleted':
             await handleCustomerDeleted(event.data.object)
             break
-
         default:
             logger.warn({ eventType: event.type }, 'unhandled webhook event')
-
     }
-
 }
