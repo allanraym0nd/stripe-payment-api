@@ -10,6 +10,8 @@ import { generalLimiter } from './middleware/rateLimiter.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { requestLogger } from './middleware/requestLogger.js'
 import logger from './utils/logger.js'
+import swaggerUi from 'swagger-ui-express'
+import { swaggerSpec } from './config/swagger.js'
 
 dotenv.config()
 
@@ -28,6 +30,7 @@ app.get('/ping', (req, res) => res.json({ message: 'pong' }))
 app.use('/auth', authRoutes)
 app.use('/payments', paymentRoutes)
 app.use('/webhooks', webhookRoutes)
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
 app.use(errorHandler)
 
