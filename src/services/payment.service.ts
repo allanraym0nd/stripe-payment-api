@@ -16,7 +16,7 @@ export const createPaymentIntent = async (
         metadata: { userId, ...metadata },
         automatic_payment_methods: {
             enabled: true,
-            allow_redirects: 'never'   // ← add this
+            allow_redirects: 'never'
         },
     }, {
         idempotencyKey: `pi_${userId}_${amount}_${Date.now()}`
